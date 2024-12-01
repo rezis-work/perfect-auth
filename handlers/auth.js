@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import User from "../models/User.js";
 import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
+import { sendVerificationEmail } from "../emails/emails.js";
 
 export const signup = async (req, res) => {
   try {
@@ -30,6 +31,8 @@ export const signup = async (req, res) => {
     });
 
     generateTokenAndSetCookie(res, user._id);
+
+    await sendVerificationEmail(email, verificationToken);
 
     res.status(201).json({
       message: "User created successfully",
