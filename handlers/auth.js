@@ -51,11 +51,33 @@ export const signup = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  res.status(200).json({ message: "Login is Comming Soon" });
+  const { email, password } = req.body;
+  console.log(email, password);
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid Credentials" });
+    }
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid Credentials" });
+    }
+    generateTokenAndSetCookie(res, user._id);
+    user.lastLogin = Date.now();
+    await user.save();
+    res.status(200).json({
+      success: true,
+      message: "Login Successfully",
+      user: { ...user._doc, password: undefined },
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
 
 export const logout = async (req, res) => {
-  res.status(200).json({ message: "Logout is Comming Soon" });
+  res.clearCookie("token");
+  res.status(200).json({ success: true, message: "Logout Successfully" });
 };
 
 export const verifyEmail = async (req, res) => {
