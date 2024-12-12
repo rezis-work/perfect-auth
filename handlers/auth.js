@@ -1,8 +1,13 @@
 import bcrypt from "bcrypt";
 import User from "../models/User.js";
+import crypto from "crypto";
 import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail, sendWelcomeEmail } from "../emails/emails.js";
+import {
+  sendResetPasswordEmail,
+  sendVerificationEmail,
+  sendWelcomeEmail,
+} from "../emails/emails.js";
 
 export const signup = async (req, res) => {
   try {
@@ -52,7 +57,9 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password } = req.body;
-  console.log(email, password);
+  if (!email || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
   try {
     const user = await User.findOne({ email });
     if (!user) {
@@ -105,4 +112,27 @@ export const verifyEmail = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+};
+
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(400).json({ message: "User not found" });
+  }
+
+  const resetToken = crypto.randomBytes(20).toString("hex");
+  const resetPasswordTokenExpiry = Date.now() + 24 * 60 * 60 * 1000;
+  user.resetPasswordToken = resetToken;
+  user.resetPasswordTokenExpiry = resetPasswordTokenExpiry;
+  await user.save();
+
+  await sendResetPasswordEmail(
+    user.email,
+    `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`
+  );
+
+  return res
+    .status(200)
+    .json({ success: true, message: "Password reset email sent", email });
 };
